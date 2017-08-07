@@ -14,143 +14,49 @@
 #define BUFF_SIZE 1000
 
 
+//store the IPs
 char node_ips[NODES][256] = {};
 
 
-int get_ip(char * hostname , char* ip) 
-{  
-   struct hostent *he;     
-   struct in_addr **addr_list;     
-   int i;     
-   if ( (he = gethostbyname( hostname ) ) == NULL){ 
-        herror("gethostbyname");         
-        return 1;
-   }     
-   addr_list = (struct in_addr **) he->h_addr_list;
-   for(i = 0; addr_list[i] != NULL; i++){   
-        strcpy(ip , inet_ntoa(*addr_list[i]) );
-        return 0;
-   }
-   return 1;
-} 
-
-
-void *client_connection(void *arg)
-{
-	sleep(1);
-    int id = *((int *)arg);
-    
-    //char ip[16];
-    //get_ip(node_ips[id],ip);
-    
-    //Connect to the server given as argument on port 20000
-    int socketfd = TCP_client_connect(node_ips[id], 20000);
-    
-    //need to wait till we get a signal to send data
-    
-    
-    
-    char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
-    
-    //send the message
-    send_full_msg(socketfd, buffer, strlen(buffer));
-
-    //receive the message
-	int received = recv_full_msg(socketfd,buffer,BUFF_SIZE);
-    
-    //print the message
-	buffer[received]='\0';  //null character before priniting the string
-	fprintf(stderr,"Recieved : %s\n",buffer);
-	
-    //close the connection
-	TCP_client_disconnect(socketfd); 
-
- 
-	return NULL;
-}
-
-
-void *server_connection(void *arg)
-{
-	sleep(1);
-    int connectfd = *((int *)arg);
-    
-    char buffer[BUFFER_SIZE];   
-    
-	//get message from client
-	int received = recv_full_msg(connectfd,buffer,BUFFER_SIZE);
-	
-    //print the message
-    buffer[received]='\0'; //null character before priniting the stringsince
-	fprintf(stderr,"Recieved : %s\n",buffer); 
- 
-    //Copy a string to buffer
-    strcpy(buffer,"Hi! This is the server reply.");
- 
-    //send a message to the client
-    send_full_msg(connectfd,buffer,strlen(buffer));
-
-    //close doen the client connection
-    TCP_server_disconnect_client(connectfd);
-    
-	return NULL;
-}
-
-
-void pthread_check(int ret){
-    if(ret!=0){
-        perror("Error creating thread");
-        exit(EXIT_FAILURE);
-    }
-}
-
-/*Die on error. Print the error and exit if the return value of the previous function NULL*/
-void errorCheckNULL(void *ret,char *msg){
-	if(ret==NULL){
-		perror(msg);
-		exit(EXIT_FAILURE);
-	}
-}
-
-
-
+void pthread_check(int ret);
+void errorCheckNULL(void *ret,char *msg);
+void *client_connection(void *arg);
+void *server_connection(void *arg);
 
 int main(){
     
     int ret ,i;
     
-    //reading config file
+    //reading config file, Contains what other hosts should be connected
     FILE *config = fopen("/etc/odroid_topology","r");
     errorCheckNULL(config,"Cannot open file");   
     
     for(i=0;i<NODES;i++){
         fgets(&node_ips[i][0], 256, config);  //check returned value, 
     }
-    
     fclose(config);    
     
     
-    //clients
+    //data structures for clients (connect to servers running on other ips)
     pthread_t client_thread[3];     
     int thread_id[NODES];
     
-    //servers
+    //data structures for servers 
     pthread_t server_thread[3] ;       
     int connect_fd[NODES];
     
 
-    //First create threads for client side
+    //First create threads for clients
     for(i=0;i<NODES;i++){
         thread_id[i]=i;
         ret = pthread_create( &client_thread[i], NULL, client_connection, (void *)(&thread_id[i])) ;
         pthread_check(ret);
     }
     
-    
     //create a listening socket on port 20000
 	int listenfd=TCP_server_init(20000);
  
-    //threads for server side
+    //threads for server
     for(i=0;i<NODES;i++){
         //accept a client connection
         connect_fd[i] = TCP_server_accept_client(listenfd); 
@@ -186,4 +92,109 @@ int main(){
     return 0;
     
 }
+
+
+
+
+void pthread_check(int ret){
+    if(ret!=0){
+        perror("Error creating thread");
+        exit(EXIT_FAILURE);
+    }
+}
+
+/*Die on error. Print the error and exit if the return value of the previous function NULL*/
+void errorCheckNULL(void *ret,char *msg){
+	if(ret==NULL){
+		perror(msg);
+		exit(EXIT_FAILURE);
+	}
+}
+
+
+
+
+void *client_connection(void *arg)
+{
+	sleep(1); //wait till servers are setup
+    int id = *((int *)arg);
+    
+    //char ip[16];
+    //get_ip(node_ips[id],ip);
+    
+    //Connect to the server given as argument on port 20000
+    int socketfd = TCP_client_connect(node_ips[id], 20000);
+    
+    //need to wait till we get a signal to send data
+    
+    
+    
+    char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
+    
+    //send the message
+    send_full_msg(socketfd, buffer, strlen(buffer));
+
+    //receive the message
+	int received = recv_full_msg(socketfd,buffer,BUFF_SIZE);
+    
+    //print the message
+	buffer[received]='\0';  //null character before priniting the string
+	fprintf(stderr,"Recieved : %s\n",buffer);
+	
+    //close the connection
+	TCP_client_disconnect(socketfd); 
+
+	return NULL;
+}
+
+//server thread
+void *server_connection(void *arg)
+{
+	sleep(1); //not needed
+    int connectfd = *((int *)arg);
+    
+    char buffer[BUFFER_SIZE];   
+    
+	//get message from client
+	int received = recv_full_msg(connectfd,buffer,BUFFER_SIZE);
+	
+    //print the message
+    buffer[received]='\0'; //null character before priniting the stringsince
+	fprintf(stderr,"Recieved : %s\n",buffer); 
+ 
+    //Copy a string to buffer
+    strcpy(buffer,"Hi! This is the server reply.");
+ 
+    //send a message to the client
+    send_full_msg(connectfd,buffer,strlen(buffer));
+
+    //close doen the client connection
+    TCP_server_disconnect_client(connectfd);
+    
+	return NULL;
+}
+
+
+
+
+
+
+
+//a function to get ip using host name
+int get_ip(char * hostname , char* ip) 
+{  
+   struct hostent *he;     
+   struct in_addr **addr_list;     
+   int i;     
+   if ( (he = gethostbyname( hostname ) ) == NULL){ 
+        herror("gethostbyname");         
+        return 1;
+   }     
+   addr_list = (struct in_addr **) he->h_addr_list;
+   for(i = 0; addr_list[i] != NULL; i++){   
+        strcpy(ip , inet_ntoa(*addr_list[i]) );
+        return 0;
+   }
+   return 1;
+} 
 
