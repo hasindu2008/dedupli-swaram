@@ -46,6 +46,10 @@ void *client_connection(void *arg)
     //Connect to the server given as argument on port 20000
     int socketfd = TCP_client_connect(node_ips[id], 20000);
     
+    //need to wait till we get a signal to send data
+    
+    
+    
     char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
     
     //send the message
@@ -115,6 +119,7 @@ int main(){
     
     int ret ,i;
     
+    //reading config file
     FILE *config = fopen("/etc/odroid_topology","r");
     errorCheckNULL(config,"Cannot open file");   
     
@@ -123,6 +128,7 @@ int main(){
     }
     
     fclose(config);    
+    
     
     //clients
     pthread_t client_thread[3];     
@@ -143,8 +149,7 @@ int main(){
     
     //create a listening socket on port 20000
 	int listenfd=TCP_server_init(20000);
-
-    
+ 
     //threads for server side
     for(i=0;i<NODES;i++){
         //accept a client connection
@@ -152,6 +157,15 @@ int main(){
         ret = pthread_create( &server_thread[i], NULL, server_connection, (void *)(&connect_fd[i])) ;
         pthread_check(ret);           
     }
+    
+    //actual processing happens here
+    
+    
+    //need to send signals to therads
+    
+    
+    
+    
     
 
     //joining client side threads
