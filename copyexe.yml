@@ -1,0 +1,9 @@
+- hosts: nodes
+  gather_facts: no
+  remote_user: odroid
+  sudo: yes
+  sudo_user: root
+  tasks:
+  - name: "run"
+    shell: cp /home/odroid/sorting_framework/main /usr/local/bin/dedupli
+

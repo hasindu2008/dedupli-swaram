@@ -11,23 +11,23 @@
 
 #define NODES 3
 
-#define BUFFER_SIZE 1000
 #define BUFF_SIZE 1000
 
 #define LOOPS 1
 
-#define STARTID 0
+//#define STARTID 0
 #define READS 80000
 
+#define DEBUG 0
+#define MANUAL_ARG 1  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
+
+long STARTID = 0;
 
 //store the IPs
 char node_ips[NODES][256] = {};
 
-
 //array for storing mapping quality of each read
 unsigned char mapq_array[NODES+1][READS];
-
-
 
 //conditional variable for notifying to send
 pthread_cond_t send_cond = PTHREAD_COND_INITIALIZER;
@@ -53,9 +53,20 @@ void deduplicate(char *inputname, char *outputname);
 void *client_connection(void *arg);
 void *server_connection(void *arg);
 
-int main(){
+int main(int argc, char **argv){
+    
+#ifdef MANUAL_ARG
+    if(argc!=4){
+        fprintf(stderr,"Usage : %s input.sam output.sam startID\n",argv[0]);
+        exit(EXIT_FAILURE);
+    }
+#endif    
     
     int ret ,i;
+    char inputfilename[256];
+    char debugfilename[256];
+    char outputfilename[256];
+    
     
     //reading config file, Contains what other hosts should be connected
     FILE *config = fopen("/etc/odroid_topology","r");
@@ -101,9 +112,24 @@ int main(){
     pthread_barrier_init(&mybarrier2, NULL, NODES*2 + 1);
     
     for(i=0;i<LOOPS;i++){
+        
+        //generate filenames
+        sprintf(inputfilename,"/home/odroid/sorting_framework/data/set%d.sam",i);
+#ifdef DEBUG
+        sprintf(debugfilename,"/home/odroid/sorting_framework/data/debug%d.sam",i);
+#endif  
+        sprintf(outputfilename,"/home/odroid/sorting_framework/data/dedupli%d.sam",i);    
+
+#ifdef MANUAL_ARG
+        strcpy(inputfilename,argv[1]);
+        strcpy(outputfilename,argv[2]);
+        STARTID = atol(argv[3]);
+#endif        
+      
         //need to read the files and create an array containing the quality score of each read
         fprintf(stderr,"Creating arrays\n");
-        encode_mapqarray("/home/odroid/sorting_framework/data/set0.sam", "/home/odroid/sorting_framework/data/output.sam", 0);
+
+        encode_mapqarray(inputfilename, debugfilename, 0);
         fprintf(stderr,"Finished creating arrays\n");
         
         //send client threads a signal to send the data
@@ -111,7 +137,6 @@ int main(){
         send_flag = 1;
         pthread_cond_broadcast(&send_cond);
         pthread_mutex_unlock(&send_mutex);
-        
 
 
         //need to wait until arrays from all the nodes have been received
@@ -131,7 +156,8 @@ int main(){
         pthread_barrier_wait(&mybarrier2);        
         
         //write new files based on received information
-        deduplicate("/home/odroid/sorting_framework/data/set0.sam", "/home/odroid/sorting_framework/data/dedupli.sam");
+        deduplicate(inputfilename, outputfilename);
+        STARTID += READS;
 
     }
 
@@ -189,8 +215,11 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
     FILE *input = fopen(inputname,"r");
     errorCheckNULL(input,"Cannot open file");
 
+    
+#ifdef DEBUG    
     FILE *output = fopen(outputname,"w");
     errorCheckNULL(output,"Cannot open file");    
+#endif
  
     char *buffer = malloc(sizeof(char)*BUFF_SIZE);
     errorCheckNULL(buffer,"Out of memory");
@@ -312,22 +341,28 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         
         //printf("Alignment score %s %d\n",pch,mapq);
         
+        if(read_array_index>=READS){
+            fprintf(stderr, "read_array_index is %d which is expected to be less than %d\n",read_array_index,READS);
+        }
         
         mapq_array[devno][read_array_index] = (unsigned char)mapq;
       
+#ifdef DEBUG 
         fprintf(output,"%s",buffercpy);  
+#endif        
         
     } 
 
-       
  
     //printf("%d %d %d %d\n", mapq_array[0][4179], mapq_array[1][4179], mapq_array[2][4179], mapq_array[3][4179]);
     
     free(buffer);
     free(buffercpy);
     fclose(input);
+    
+#ifdef DEBUG     
     fclose(output);
- 
+#endif 
     
 }
 
@@ -355,7 +390,6 @@ void deduplicate(char *inputname, char *outputname){
     //int flag = 0;
     //int mapq;
     
-
     while(1){
         
         readlinebytes=getline(&buffer, &bufferSize, input); 
@@ -385,6 +419,10 @@ void deduplicate(char *inputname, char *outputname){
       
         //array index
         read_array_index = (int )(readID - STARTID);
+        
+        if(read_array_index>=READS){
+            fprintf(stderr, "read_array_index is %d which is expected to be less than %d\n",read_array_index,READS);
+        }
         
         //FLAG        
         //pch = strtok (NULL,"\t\r\n");
@@ -442,7 +480,7 @@ void *client_connection(void *arg)
         }
         pthread_mutex_unlock(&send_mutex);
         
-        char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
+        //char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
         
         //send the message
         //send_full_msg(socketfd, buffer, strlen(buffer));
@@ -476,14 +514,14 @@ void *server_connection(void *arg)
     int devno = arguments[0];
     int connectfd = arguments[1];
     
-    char buffer[BUFFER_SIZE];   
+    //char buffer[BUFFER_SIZE];   
     
     //this keeps on listening
  
     int i=0;
     for(i=0;i<LOOPS;i++){
         //get message from client
-        int received = recv_full_msg(connectfd,mapq_array[devno],READS);    
+        recv_full_msg(connectfd,mapq_array[devno],READS);    
         
         //print the message
         //buffer[received]='\0'; //null character before priniting the stringsince
