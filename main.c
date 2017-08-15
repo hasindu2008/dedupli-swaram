@@ -14,10 +14,20 @@
 #define BUFFER_SIZE 1000
 #define BUFF_SIZE 1000
 
-#define LOOPS 5
+#define LOOPS 1
+
+#define STARTID 0
+#define READS 80000
+
 
 //store the IPs
 char node_ips[NODES][256] = {};
+
+
+//array for storing mapping quality of each read
+unsigned char mapq_array[NODES+1][READS];
+
+
 
 //conditional variable for notifying to send
 pthread_cond_t send_cond = PTHREAD_COND_INITIALIZER;
@@ -33,10 +43,13 @@ char rcvd = 0;
 pthread_barrier_t mybarrier;
 pthread_barrier_t mybarrier2;
 
-//error check all pthreads
-
+//function protos
 void pthread_check(int ret);
 void errorCheckNULL(void *ret,char *msg);
+void errorCheckScanVal(int ret,char *msg);
+void encode_mapqarray(char *inputname, char *outputname, int devno);
+void deduplicate(char *inputname, char *outputname);
+
 void *client_connection(void *arg);
 void *server_connection(void *arg);
 
@@ -60,7 +73,7 @@ int main(){
     
     //data structures for servers 
     pthread_t server_thread[3] ;       
-    int connect_fd[NODES];
+    int connect_fd[NODES][2];
     
 
     //First create threads for clients
@@ -75,9 +88,10 @@ int main(){
  
     //threads for server
     for(i=0;i<NODES;i++){
+        connect_fd[i][0] = i+1;
         //accept a client connection
-        connect_fd[i] = TCP_server_accept_client(listenfd); 
-        ret = pthread_create( &server_thread[i], NULL, server_connection, (void *)(&connect_fd[i])) ;
+        connect_fd[i][1] = TCP_server_accept_client(listenfd); 
+        ret = pthread_create( &server_thread[i], NULL, server_connection, (void *)(connect_fd[i])) ;
         pthread_check(ret);           
     }
     
@@ -89,7 +103,7 @@ int main(){
     for(i=0;i<LOOPS;i++){
         //need to read the files and create an array containing the quality score of each read
         fprintf(stderr,"Creating arrays\n");
-        sleep(rand()%10);
+        encode_mapqarray("/home/odroid/sorting_framework/data/set0.sam", "/home/odroid/sorting_framework/data/output.sam", 0);
         fprintf(stderr,"Finished creating arrays\n");
         
         //send client threads a signal to send the data
@@ -117,7 +131,7 @@ int main(){
         pthread_barrier_wait(&mybarrier2);        
         
         //write new files based on received information
-        sleep(rand()%10);
+        deduplicate("/home/odroid/sorting_framework/data/set0.sam", "/home/odroid/sorting_framework/data/dedupli.sam");
 
     }
 
@@ -150,6 +164,7 @@ void pthread_check(int ret){
     }
 }
 
+
 /*Die on error. Print the error and exit if the return value of the previous function NULL*/
 void errorCheckNULL(void *ret,char *msg){
 	if(ret==NULL){
@@ -160,10 +175,255 @@ void errorCheckNULL(void *ret,char *msg){
 
 
 
+void errorCheckScanVal(int ret,char *msg){
+    if(ret!=1){
+        fprintf(stderr,"%s\n",msg);
+		exit(EXIT_FAILURE);
+    }  
+    
+}
+
+
+void encode_mapqarray(char *inputname, char *outputname, int devno){
+
+    FILE *input = fopen(inputname,"r");
+    errorCheckNULL(input,"Cannot open file");
+
+    FILE *output = fopen(outputname,"w");
+    errorCheckNULL(output,"Cannot open file");    
+ 
+    char *buffer = malloc(sizeof(char)*BUFF_SIZE);
+    errorCheckNULL(buffer,"Out of memory");
+    char *buffercpy = malloc(sizeof(char)*BUFF_SIZE);
+    errorCheckNULL(buffercpy,"Out of memory");
+    
+    memset(mapq_array[devno],0,READS);  //can handle inside the loop as all reads are in the input sam and hence all un mapped will be cleared to 0
+    
+    size_t bufferSize = BUFF_SIZE;
+    
+    char * pch;
+    int ret;
+    int readlinebytes=0;
+    long readID = 0;
+    int read_array_index = 0;
+    int flag = 0;
+    int mapq;
+        
+    
+    while(1){
+        readlinebytes=getline(&buffer, &bufferSize, input); 
+        //file has ended
+        if(readlinebytes == -1){
+            break;
+        }        
+        //errorCheck(ret,"File has prematurely ended");
+        
+        //ignore header lines
+        if(buffer[0]=='@'){
+            continue;
+        }
+        
+        //copy buffer
+        if(readlinebytes>=BUFF_SIZE){
+            fprintf(stderr,"Need to implement realloc\n");
+            exit(EXIT_FAILURE);
+        }
+        strcpy(buffercpy,buffer);
+        
+        //read ID (QNAME)
+        pch = strtok (buffer,"\t\r\n"); 
+        errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
+        //printf("%s\n",pch);
+        ret=sscanf(pch,"%ld",&readID);
+        errorCheckScanVal(ret,"Bad read ID format");
+      
+        //array index
+        read_array_index = (int )(readID - STARTID);
+        
+        //FLAG
+        
+        pch = strtok (NULL,"\t\r\n");
+        errorCheckNULL(pch,"A bad samfile. No FLAG in line?");
+        ret=sscanf(pch,"%d",&flag);
+        errorCheckScanVal(ret,"Bad read ID format");
+        
+        //if unmapped or secondary mapped or supplymentary mapped
+        if((flag & 0x04) || (flag & 0x100) || (flag & 0x800)){
+            //mapq_array[devno][read_array_index] = 0;
+            continue;
+        }
+
+      
+        //make efficient by scanning from back
+      
+        //RNAME
+        pch = strtok (NULL,"\t\r\n"); 
+        
+        //POS
+        pch = strtok (NULL,"\t\r\n"); 
+        
+        //MAPQ
+        pch = strtok (NULL,"\t\r\n"); 
+        //errorCheckNULL(pch,"A bad samfile. No MAPQ in line?");
+        //ret=sscanf(pch,"%d",&mapq);
+        //mapq is a star
+        //if(ret!=1 || mapq >=255 || mapq<=0){
+            //mapq_array[devno][read_array_index] = 0;
+            //continue;           
+        //}
+        /*if(mapq >=255 || mapq<=0){
+            mapq_array[devno][read_array_index] = 0;
+            continue;           
+        }*/
+        
+        //CIGAR
+        pch = strtok (NULL,"\t\r\n");
+        
+        //RNEXT
+        pch = strtok (NULL,"\t\r\n");
+        
+        //PNEXT
+        pch = strtok (NULL,"\t\r\n");
+        
+        //TLEN
+        pch = strtok (NULL,"\t\r\n");
+        
+        //SEQ
+        pch = strtok (NULL,"\t\r\n");
+        
+        //QUAL
+        pch = strtok (NULL,"\t\r\n");
+        
+        //NM
+        pch = strtok (NULL,"\t\r\n");
+        
+        //MD
+        pch = strtok (NULL,"\t\r\n");
+        
+        //alignment score
+        pch = strtok (NULL,"\t\r\n");
+        errorCheckNULL(pch,"A bad samfile. No Alignment Score in line?");
+        ret=sscanf(pch,"AS:i:%d",&mapq);
+        errorCheckScanVal(ret,"Bad alignment score format");
+        if(mapq<0 || mapq>255){
+            fprintf(stderr,"We have a problem. Alignment score has gone out of unsigned char limits\n");
+            exit(EXIT_FAILURE);
+        }
+        
+        //printf("Alignment score %s %d\n",pch,mapq);
+        
+        
+        mapq_array[devno][read_array_index] = (unsigned char)mapq;
+      
+        fprintf(output,"%s",buffercpy);  
+        
+    } 
+
+       
+ 
+    //printf("%d %d %d %d\n", mapq_array[0][4179], mapq_array[1][4179], mapq_array[2][4179], mapq_array[3][4179]);
+    
+    free(buffer);
+    free(buffercpy);
+    fclose(input);
+    fclose(output);
+ 
+    
+}
+
+void deduplicate(char *inputname, char *outputname){
+    
+    FILE *input = fopen(inputname,"r");
+    errorCheckNULL(input,"Cannot open file");
+
+    FILE *output = fopen(outputname,"w");
+    errorCheckNULL(output,"Cannot open file");    
+ 
+    char *buffer = malloc(sizeof(char)*BUFF_SIZE);
+    errorCheckNULL(buffer,"Out of memory");
+    char *buffercpy = malloc(sizeof(char)*BUFF_SIZE);
+    errorCheckNULL(buffercpy,"Out of memory");
+    
+
+    size_t bufferSize = BUFF_SIZE;
+    
+    char * pch;
+    int ret;
+    int readlinebytes=0;
+    long readID = 0;
+    int read_array_index = 0;
+    //int flag = 0;
+    //int mapq;
+    
+
+    while(1){
+        
+        readlinebytes=getline(&buffer, &bufferSize, input); 
+        //file has ended
+        if(readlinebytes == -1){
+            break;
+        }            
+        
+        //ignore header lines  //empty new lines?
+        if(buffer[0]=='@'){
+            continue;
+        }
+        
+        //copy buffer
+        if(readlinebytes>=BUFF_SIZE){
+            fprintf(stderr,"Need to implement realloc\n");
+            exit(EXIT_FAILURE);
+        }
+        strcpy(buffercpy,buffer);
+        
+        //read ID (QNAME)
+        pch = strtok (buffer,"\t\r\n"); 
+        errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
+        //printf("%s\n",pch);
+        ret=sscanf(pch,"%ld",&readID);
+        errorCheckScanVal(ret,"Bad read ID format");
+      
+        //array index
+        read_array_index = (int )(readID - STARTID);
+        
+        //FLAG        
+        //pch = strtok (NULL,"\t\r\n");
+
+        //RNAME
+        //pch = strtok (NULL,"\t\r\n"); 
+        
+        //POS
+        //pch = strtok (NULL,"\t\r\n"); 
+        
+ 
+        
+        unsigned char mapq = mapq_array[0][read_array_index];
+        unsigned char mapq1 = mapq_array[1][read_array_index];
+        unsigned char mapq2 = mapq_array[2][read_array_index];
+        unsigned char mapq3 = mapq_array[3][read_array_index];
+        if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){     
+            fprintf(output,"%s",buffercpy);  
+        }
+        
+        //if(read_array_index==4179){
+            //printf("%d %d %d %d\n",mapq,mapq1,mapq2,mapq3);
+        //}
+    }    
+ 
+    
+    free(buffer);
+    free(buffercpy);
+    fclose(input);
+    fclose(output);
+ 
+        
+    
+    
+}
 
 void *client_connection(void *arg)
 {
-	sleep(1); //wait till servers are setup
+	//sleep(1); //wait till servers are setup
     int id = *((int *)arg);
     
     //char ip[16];
@@ -185,7 +445,8 @@ void *client_connection(void *arg)
         char buffer[BUFF_SIZE]="Hi! I am the client. Serve me please!";
         
         //send the message
-        send_full_msg(socketfd, buffer, strlen(buffer));
+        //send_full_msg(socketfd, buffer, strlen(buffer));
+        send_full_msg(socketfd, mapq_array[0], READS);
         fprintf(stderr,"Message sent\n");
         
         //barrier
@@ -209,8 +470,11 @@ void *client_connection(void *arg)
 //server thread
 void *server_connection(void *arg)
 {
-	sleep(1); //not needed
-    int connectfd = *((int *)arg);
+	//sleep(1); //not needed
+    
+    int *arguments  = (int *)arg;
+    int devno = arguments[0];
+    int connectfd = arguments[1];
     
     char buffer[BUFFER_SIZE];   
     
@@ -219,11 +483,11 @@ void *server_connection(void *arg)
     int i=0;
     for(i=0;i<LOOPS;i++){
         //get message from client
-        int received = recv_full_msg(connectfd,buffer,BUFFER_SIZE);    
+        int received = recv_full_msg(connectfd,mapq_array[devno],READS);    
         
         //print the message
-        buffer[received]='\0'; //null character before priniting the stringsince
-        fprintf(stderr,"Recieved : %s\n",buffer); 
+        //buffer[received]='\0'; //null character before priniting the stringsince
+        //fprintf(stderr,"Recieved : %s\n",buffer); 
      
         //need to say that we received stuff
         pthread_mutex_lock(&rcvd_mutex);

@@ -28,7 +28,7 @@ int recv_full_msg(int socket, void *buffer, int length)
         
     fprintf(stderr, "receiving a message of size %d\n",expected_length);
     
-    if(expected_length>=length){
+    if(expected_length>length){
         fprintf(stderr, "Buffer is too small to fit expected data\n");
     }
     
