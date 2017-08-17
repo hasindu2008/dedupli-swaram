@@ -54,7 +54,21 @@ int TCP_server_init(int PORT){
 	//open socket bind and listen
 	listenfd = socket(AF_INET,SOCK_STREAM,0); 
 	errorCheck(listenfd,"Cannot create socket");
-	ret=bind(listenfd,(struct sockaddr *)&server, sizeof(server));
+    
+    //trying to get rid of socket in use
+    int enable = 1;
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0){
+        perror("setsockopt(SO_REUSEADDR) failed");    
+    }
+    
+    ret=-1;
+    while(ret==-1){
+        ret=bind(listenfd,(struct sockaddr *)&server, sizeof(server));
+        if (ret==-1){
+            fprintf(stderr,"Cannot bind : Address is used. Trying agin..\n");
+            sleep(1);
+        }
+    }
 	errorCheck(ret,"Cannot bind");
 	fprintf(stderr,"Binding successfull... port : %d\n",PORT);
 	ret=listen(listenfd,5);
@@ -164,6 +178,7 @@ void send_all(int socket, void *buffer, int length)
         i = send(socket, ptr, length, 0);
         if (i < 1){
             perror("Could not send all data");
+            sleep(1);
         }
         ptr += i;
         length -= i;
@@ -181,6 +196,7 @@ void recv_all(int socket, void *buffer, int length)
         i = recv(socket, ptr, length, 0);
         if (i < 1){
             perror("Could not receive all data");
+            sleep(1);
         }
         ptr += i;
         length -= i;
