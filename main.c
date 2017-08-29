@@ -10,6 +10,7 @@
 #include <signal.h>
 
 #define NODES 3
+#define VERTICAL_NODES 3
 
 #define BUFF_SIZE 1000
 
@@ -25,6 +26,7 @@ long STARTID = 0;
 
 //store the IPs
 char node_ips[NODES][256] = {};
+char vertical_node_ips[NODES][256] = {};
 
 //array for storing mapping quality of each read
 unsigned char mapq_array[NODES+1][READS];
@@ -42,6 +44,18 @@ char rcvd = 0;
 //barrier to reset the send_flag variable
 pthread_barrier_t mybarrier;
 pthread_barrier_t mybarrier2;
+
+//structure for storing the region data
+struct region_limit{
+    FILE *outfile;
+    int lowlimit;
+    int highlimit;
+    char chromosome[200];
+};
+
+
+struct region_limit region_limits[VERTICAL_NODES];
+
 
 //function protos
 void pthread_check(int ret);
@@ -71,9 +85,26 @@ int main(int argc, char **argv){
     //reading config file, Contains what other hosts should be connected
     FILE *config = fopen("/etc/odroid_topology","r");
     errorCheckNULL(config,"Cannot open file");   
-    
     for(i=0;i<NODES;i++){
         fgets(&node_ips[i][0], 256, config);  //check returned value, 
+    }
+    fclose(config);    
+    
+    //vertical hosts (where to send files)
+    config = fopen("/etc/odroid_topology","r");
+    errorCheckNULL(config,"Cannot open file");   
+    for(i=0;i<NODES;i++){
+        fgets(&vertical_node_ips[i][0], 256, config);  //check returned value, 
+    }
+    fclose(config);      
+    
+    
+    //reading information on the regions in which each device should process on 
+    config = fopen("/etc/region_info","r");   
+    errorCheckNULL(config,"Cannot open file");
+    for(i=0;i<VERTICAL_NODES;i++){
+        fscanf(config,"%s %d %d",region_limits[i].chromosome,&(region_limits[i].lowlimit), &(region_limits[i].highlimit)); //check returned value
+        printf("%s %d %d\n",region_limits[i].chromosome,region_limits[i].lowlimit, region_limits[i].highlimit);
     }
     fclose(config);    
     
@@ -371,8 +402,21 @@ void deduplicate(char *inputname, char *outputname){
     FILE *input = fopen(inputname,"r");
     errorCheckNULL(input,"Cannot open file");
 
+    //whole output
     FILE *output = fopen(outputname,"w");
     errorCheckNULL(output,"Cannot open file");    
+    
+    
+    //separated output
+    int i;
+    char filename[256];
+    for(i=0;i<VERTICAL_NODES;i++){
+        sprintf(filename,"dev%d.sam",i);
+        region_limits[i].outfile = fopen(filename,"w");
+        errorCheckNULL(region_limits[i].outfile,"Cannot open file");   
+    }
+    
+    
  
     char *buffer = malloc(sizeof(char)*BUFF_SIZE);
     errorCheckNULL(buffer,"Out of memory");
@@ -440,7 +484,13 @@ void deduplicate(char *inputname, char *outputname){
         unsigned char mapq2 = mapq_array[2][read_array_index];
         unsigned char mapq3 = mapq_array[3][read_array_index];
         if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){     
-            fprintf(output,"%s",buffercpy);  
+            fprintf(output,"%s",buffercpy); 
+
+            //check regions
+            
+
+
+            
         }
         
         //if(read_array_index==4179){
@@ -454,7 +504,9 @@ void deduplicate(char *inputname, char *outputname){
     fclose(input);
     fclose(output);
  
-        
+    for(i=0;i<VERTICAL_NODES;i++){
+        fclose(region_limits[i].outfile);   
+    }        
     
     
 }
