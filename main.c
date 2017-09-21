@@ -17,9 +17,9 @@
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 80000
+#define READS 250000
 
-#define DEBUG 0
+//#define DEBUG 1
 #define MANUAL_ARG 1  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
 
 long STARTID = 0;
@@ -279,7 +279,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         //errorCheck(ret,"File has prematurely ended");
         
         //ignore header lines
-        if(buffer[0]=='@'){
+        if(buffer[0]=='@' || buffer[0]=='\n'){
             continue;
         }
         
@@ -294,8 +294,9 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"%ld",&readID);
-        errorCheckScanVal(ret,"Bad read ID format");
+        ret=sscanf(pch,"Ram%ld",&readID);
+        //fprintf(stderr,"buffer : %s\n",buffer);
+        errorCheckScanVal(ret,"Bad read ID format.");
       
         //array index
         read_array_index = (int )(readID - STARTID);
@@ -305,7 +306,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         pch = strtok (NULL,"\t\r\n");
         errorCheckNULL(pch,"A bad samfile. No FLAG in line?");
         ret=sscanf(pch,"%d",&flag);
-        errorCheckScanVal(ret,"Bad read ID format");
+        errorCheckScanVal(ret,"Bad flag");
         
         //if unmapped or secondary mapped or supplymentary mapped
         if((flag & 0x04) || (flag & 0x100) || (flag & 0x800)){
@@ -443,7 +444,7 @@ void deduplicate(char *inputname, char *outputname){
         }            
         
         //ignore header lines  //empty new lines?
-        if(buffer[0]=='@'){
+        if(buffer[0]=='@' || buffer[0]=='\n'){
             continue;
         }
         
@@ -458,7 +459,7 @@ void deduplicate(char *inputname, char *outputname){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"%ld",&readID);
+        ret=sscanf(pch,"Ram%ld",&readID);
         errorCheckScanVal(ret,"Bad read ID format");
       
         //array index
