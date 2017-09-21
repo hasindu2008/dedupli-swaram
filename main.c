@@ -83,7 +83,7 @@ int main(int argc, char **argv){
     
     
     //reading config file, Contains what other hosts should be connected
-    FILE *config = fopen("/etc/odroid_topology","r");
+    FILE *config = fopen("/genomics/horizontal_topology.cfg","r");
     errorCheckNULL(config,"Cannot open file");   
     for(i=0;i<NODES;i++){
         fgets(&node_ips[i][0], 256, config);  //check returned value, 
@@ -91,7 +91,7 @@ int main(int argc, char **argv){
     fclose(config);    
     
     //vertical hosts (where to send files)
-    config = fopen("/etc/odroid_topology","r");
+    config = fopen("/genomics/vertical_topology.cfg","r");
     errorCheckNULL(config,"Cannot open file");   
     for(i=0;i<NODES;i++){
         fgets(&vertical_node_ips[i][0], 256, config);  //check returned value, 
@@ -100,13 +100,13 @@ int main(int argc, char **argv){
     
     
     //reading information on the regions in which each device should process on 
-    config = fopen("/etc/region_info","r");   
-    errorCheckNULL(config,"Cannot open file");
-    for(i=0;i<VERTICAL_NODES;i++){
-        fscanf(config,"%s %d %d",region_limits[i].chromosome,&(region_limits[i].lowlimit), &(region_limits[i].highlimit)); //check returned value
-        printf("%s %d %d\n",region_limits[i].chromosome,region_limits[i].lowlimit, region_limits[i].highlimit);
-    }
-    fclose(config);    
+    // config = fopen("/etc/region_info","r");   
+    // errorCheckNULL(config,"Cannot open file");
+    // for(i=0;i<VERTICAL_NODES;i++){
+        // fscanf(config,"%s %d %d",region_limits[i].chromosome,&(region_limits[i].lowlimit), &(region_limits[i].highlimit)); //check returned value
+        // printf("%s %d %d\n",region_limits[i].chromosome,region_limits[i].lowlimit, region_limits[i].highlimit);
+    // }
+    // fclose(config);    
     
     
     //data structures for clients (connect to servers running on other ips)

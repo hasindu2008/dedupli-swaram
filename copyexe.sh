@@ -1,2 +1,1 @@
-sudo cp main /usr/local/bin/
-ansible-playbook -K copyexe.yml
+make && ansible-playbook -K copyexe.yml
