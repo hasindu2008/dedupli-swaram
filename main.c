@@ -8,9 +8,12 @@
 #include <netdb.h> 
 #include <arpa/inet.h>
 #include <signal.h>
+#include <assert.h>
 
 #define NODES 3
 #define VERTICAL_NODES 3
+
+#define READFORMAT "%ld"
 
 #define BUFF_SIZE 1000
 
@@ -20,7 +23,7 @@
 #define READS 89801485
 
 //#define DEBUG 1
-#define MANUAL_ARG 1  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
+//#define MANUAL_ARG 1  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
 
 long STARTID = 0;
 
@@ -46,16 +49,21 @@ pthread_barrier_t mybarrier;
 pthread_barrier_t mybarrier2;
 
 //structure for storing the region data
-struct region_limit{
-    FILE *outfile;
-    int lowlimit;
-    int highlimit;
-    char chromosome[200];
-};
+// struct region_limit{
+    // char filename[1000];
+    // FILE *outfile;
+    // int num;
+    // int lowlimit[2];
+    // int highlimit[2];
+    // char chromosome[2][200];
+    
+// };
 
+// struct region_limit region_limits[VERTICAL_NODES];
 
-struct region_limit region_limits[VERTICAL_NODES];
+FILE *output_files[VERTICAL_NODES+1];
 
+int iteration_number=0;
 
 //function protos
 void pthread_check(int ret);
@@ -66,6 +74,129 @@ void deduplicate(char *inputname, char *outputname);
 
 void *client_connection(void *arg);
 void *server_connection(void *arg);
+
+
+int to_which_device(char *chrom, int pos){
+    
+    if(strcmp(chrom,"1")==0 && pos>=1 && pos <=200000000){
+        return 0;
+    }
+    else if(strcmp(chrom,"2")==0 && pos>=1 && pos <=200000000){
+        return 1;
+    }
+    else if(strcmp(chrom,"3")==0 ){
+        return 2;
+    }
+    else if(strcmp(chrom,"4")==0 ){
+        return 3;
+    }
+    else if(strcmp(chrom,"1")==0 && pos>=200000001){
+        return 4;
+    }    
+    else if(strcmp(chrom,"8")==0){
+        return 4;    
+    }
+    else if(strcmp(chrom,"2")==0 && pos>=200000001){
+        return 5;
+    }     
+    else if(strcmp(chrom,"7")==0){
+        return 5;
+    }    
+    else if(strcmp(chrom,"6")==0 ){
+        return 6;
+    }
+    else if(strcmp(chrom,"5")==0 ){
+        return 7;
+    } 
+    else if(strcmp(chrom,"15")==0 || strcmp(chrom,"16")==0 ){
+        return 8;
+    }
+    else if(strcmp(chrom,"9")==0 || strcmp(chrom,"22")==0 ){
+        return 9;
+    }
+    else if(strcmp(chrom,"10")==0 || strcmp(chrom,"21")==0 ){
+        return 10;
+    }
+    else if(strcmp(chrom,"11")==0 || strcmp(chrom,"19")==0 ){
+        return 11;
+    }
+    else if(strcmp(chrom,"X")==0 || strcmp(chrom,"Y")==0 ){
+        return 12;
+    }    
+    else if(strcmp(chrom,"14")==0 || strcmp(chrom,"17")==0 ){
+        return 13;
+    }     
+     else if(strcmp(chrom,"13")==0 || strcmp(chrom,"18")==0){
+        return 14;
+    }
+    else if(strcmp(chrom,"12")==0 || strcmp(chrom,"20")==0 ){
+        return 15;
+    }    
+
+    else{
+        fprintf(stderr,"Some invalid chromosome or position %s:%d\n",chrom,pos);
+        exit(EXIT_FAILURE);
+    }
+}
+
+int to_which_row(char *chrom, int pos){
+    
+    //row 0
+    if(strcmp(chrom,"1")==0 && pos>=1 && pos <=200000000){
+        return 0;
+    }
+    else if(strcmp(chrom,"2")==0 && pos>=1 && pos <=200000000){
+        return 0;
+    }
+    else if(strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0 ){
+        return 0;
+    }
+
+    
+    else if(strcmp(chrom,"1")==0 && pos>=200000001){
+        return 1;
+    }    
+    else if(strcmp(chrom,"2")==0 && pos>=200000001){
+        return 1;
+    }     
+    else if(strcmp(chrom,"8")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
+        return 1;    
+    }
+    
+     
+    else if(strcmp(chrom,"15")==0 || strcmp(chrom,"16")==0 ){
+        return 2;
+    }
+    else if(strcmp(chrom,"9")==0 || strcmp(chrom,"22")==0 ){
+        return 2;
+    }
+    else if(strcmp(chrom,"10")==0 || strcmp(chrom,"21")==0 ){
+        return 2;
+    }
+    else if(strcmp(chrom,"11")==0 || strcmp(chrom,"19")==0 ){
+        return 2;
+    }
+    
+    else if(strcmp(chrom,"X")==0 || strcmp(chrom,"Y")==0 ){
+        return 3;
+    }    
+    else if(strcmp(chrom,"14")==0 || strcmp(chrom,"17")==0 ){
+        return 3;
+    }     
+     else if(strcmp(chrom,"13")==0 || strcmp(chrom,"18")==0){
+        return 3;
+    }
+    else if(strcmp(chrom,"12")==0 || strcmp(chrom,"20")==0 ){
+        return 3;
+    }    
+
+    else{
+        fprintf(stderr,"Some invalid chromosome or position %s:%d\n",chrom,pos);
+        exit(EXIT_FAILURE);
+    }   
+    
+}
+
 
 int main(int argc, char **argv){
     
@@ -294,7 +425,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"SRR622457.%ld",&readID);
+        ret=sscanf(pch,READFORMAT,&readID);
         //fprintf(stderr,"buffer : %s\n",buffer);
         errorCheckScanVal(ret,"Bad read ID format.");
       
@@ -407,15 +538,22 @@ void deduplicate(char *inputname, char *outputname){
     FILE *output = fopen(outputname,"w");
     errorCheckNULL(output,"Cannot open file");    
     
+    char output_filename[1000];
+    //divided outputs
+    int i;
+    for(i=0;i<VERTICAL_NODES+1;i++){
+        sprintf(output_filename,"/genomics/scratch/parted%d.sam",i);
+        output_files[i]=fopen(output_filename,"w");
+        errorCheckNULL(output_files[i],"Cannot open file"); 
+    }
     
     //separated output
-    int i;
-    char filename[256];
-    for(i=0;i<VERTICAL_NODES;i++){
-        sprintf(filename,"dev%d.sam",i);
-        region_limits[i].outfile = fopen(filename,"w");
-        errorCheckNULL(region_limits[i].outfile,"Cannot open file");   
-    }
+    // char filename[256];
+    // for(i=0;i<VERTICAL_NODES;i++){
+        // sprintf(filename,"dev%d.sam",i);
+        // region_limits[i].outfile = fopen(filename,"w");
+        // errorCheckNULL(region_limits[i].outfile,"Cannot open file");   
+    // }
     
     
  
@@ -434,6 +572,11 @@ void deduplicate(char *inputname, char *outputname){
     int read_array_index = 0;
     //int flag = 0;
     //int mapq;
+    
+    char chrom[1000];
+    int pos;
+    int row;
+    int flag;
     
     while(1){
         
@@ -459,7 +602,7 @@ void deduplicate(char *inputname, char *outputname){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"SRR622457.%ld",&readID);
+        ret=sscanf(pch,READFORMAT,&readID);
         errorCheckScanVal(ret,"Bad read ID format");
       
         //array index
@@ -470,15 +613,30 @@ void deduplicate(char *inputname, char *outputname){
         }
         
         //FLAG        
-        //pch = strtok (NULL,"\t\r\n");
-
+        pch = strtok (NULL,"\t\r\n");
+        ret=sscanf(pch,"%d",&flag);
+        errorCheckScanVal(ret,"Bad flag");
+        
+        //if unmapped or secondary mapped or supplymentary mapped
+        if((flag & 0x04) || (flag & 0x100) || (flag & 0x800)){
+            //mapq_array[devno][read_array_index] = 0;
+            continue;
+        }
         //RNAME
-        //pch = strtok (NULL,"\t\r\n"); 
+        pch = strtok (NULL,"\t\r\n");
+        errorCheckNULL(pch,"A bad samfile. No RNAME in line?");    
+        strcpy(chrom,pch);    
         
         //POS
-        //pch = strtok (NULL,"\t\r\n"); 
+        pch = strtok (NULL,"\t\r\n"); 
+        errorCheckNULL(pch,"A bad samfile. No POSITION in line?");
+        ret=sscanf(pch,"%d",&pos);
+        errorCheckScanVal(ret,"Bad POSITION");
+        assert(pos>0);
         
- 
+        //get the row number
+        row=to_which_row(chrom, pos);
+        assert(row>=0 && row<4);
         
         unsigned char mapq = mapq_array[0][read_array_index];
         unsigned char mapq1 = mapq_array[1][read_array_index];
@@ -486,12 +644,7 @@ void deduplicate(char *inputname, char *outputname){
         unsigned char mapq3 = mapq_array[3][read_array_index];
         if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){     
             fprintf(output,"%s",buffercpy); 
-
-            //check regions
-            
-
-
-            
+            fprintf(output_files[row],"%s",buffercpy); 
         }
         
         //if(read_array_index==4179){
@@ -505,8 +658,8 @@ void deduplicate(char *inputname, char *outputname){
     fclose(input);
     fclose(output);
  
-    for(i=0;i<VERTICAL_NODES;i++){
-        fclose(region_limits[i].outfile);   
+    for(i=0;i<VERTICAL_NODES+1;i++){
+        fclose(output_files[i]);   
     }        
     
     
