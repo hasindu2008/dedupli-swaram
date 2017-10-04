@@ -1,1 +1,1 @@
-make && ansible-playbook -K copyexe.yml
+make && ansible-playbook copyexe.yml

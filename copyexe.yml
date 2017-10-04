@@ -1,13 +1,13 @@
 - hosts: all
   gather_facts: no
   remote_user: odroid
-  become: yes
+  #become: yes
   tasks:
   - name: "copyfile"
     copy:
      src: /home/odroid/sorting_framework/variantcall
-     dest: /usr/local/bin/dedupli
-     owner: root
-     group: root
+     dest: /genomics/sorting_framework/dedupli
+     #owner: root
+     #group: root
      mode: 0755
 

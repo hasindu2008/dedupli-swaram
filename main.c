@@ -17,7 +17,7 @@
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 250000
+#define READS 89801485
 
 //#define DEBUG 1
 #define MANUAL_ARG 1  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
@@ -294,7 +294,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"Ram%ld",&readID);
+        ret=sscanf(pch,"SRR622457.%ld",&readID);
         //fprintf(stderr,"buffer : %s\n",buffer);
         errorCheckScanVal(ret,"Bad read ID format.");
       
@@ -459,7 +459,7 @@ void deduplicate(char *inputname, char *outputname){
         pch = strtok (buffer,"\t\r\n"); 
         errorCheckNULL(pch,"A bad samfile. No QNAME in line?");
         //printf("%s\n",pch);
-        ret=sscanf(pch,"Ram%ld",&readID);
+        ret=sscanf(pch,"SRR622457.%ld",&readID);
         errorCheckScanVal(ret,"Bad read ID format");
       
         //array index
