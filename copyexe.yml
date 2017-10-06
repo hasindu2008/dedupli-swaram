@@ -5,7 +5,7 @@
   tasks:
   - name: "copyfile"
     copy:
-     src: /home/odroid/sorting_framework/variantcall
+     src: /home/odroid/sorting_framework/main
      dest: /genomics/sorting_framework/dedupli
      #owner: root
      #group: root
