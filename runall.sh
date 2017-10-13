@@ -1,8 +1,6 @@
-make
-rsync -avz /home/odroid/sorting_framework/main odroid@odroid01:/home/odroid/sorting_framework/main
-rsync -avz /home/odroid/sorting_framework/main odroid@odroid02:/home/odroid/sorting_framework/main
-rsync -avz /home/odroid/sorting_framework/main odroid@odroid03:/home/odroid/sorting_framework/main
-./main &
-echo "Press any key to continue"
-read p
-ansible-playbook ansible.yml
+time ansible-playbook runall.yml -f 16
+
+for i in $(seq 100 115)
+do
+rsync -avz odroid@192.168.1.$i:/genomics/scratch/duplierr.txt /home/odroid/sorting_framework/tmp/dedupli$i.txt
+done

@@ -22,7 +22,7 @@
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 89801485
+#define READS 109760000
 
 //#define DEBUG "comment to turn off"
 //#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
@@ -37,6 +37,7 @@
 #define NEIGHBOUR_ROW_IP "/genomics/horizontal_topology.cfg"
 #define NEIGHBOUR_COLUMN_IP "/genomics/vertical_topology.cfg"
 #define MY_ROW_ID "/genomics/rowID.cfg"
+#define START_READ_ID "/genomics/start_read_id.cfg"
 
 //#define INPUT_FILE_NAME "/home/odroid/sorting_framework/data/set%d.sam"
 #define INPUT_FILE_NAME "/home/odroid/DevSset%d.sam"
@@ -96,6 +97,14 @@ int iteration_number=0;
     }\
     })
 
+/*Die on error. Print the error and exit if the return value of the previous function is -1*/
+#define errorCheckNEG(ret) ({\
+    if (ret<0){ \
+        fprintf(stderr,"Error at File %s line number %d : %s\n",__FILE__, __LINE__,strerror(errno));\
+        exit(EXIT_FAILURE);\
+    }\
+    })    
+    
 
 /*Die on error. Print the error and exit if the return value of the previous function NULL*/
 void errorCheckNULL_pmsg(void *ret,char *msg){
@@ -830,6 +839,13 @@ int main(int argc, char **argv){
         strcpy(inputfilename,argv[1]);
         strcpy(outputfilename,argv[2]);
         STARTID = atol(argv[3]);
+#else       
+    STARTID=-1;    
+    config = fopen(START_READ_ID,"r");
+    errorCheckNULL(config);   
+    fscanf(config,"%ld",&STARTID);
+    fclose(config);    
+    assert(STARTID>=0);        
 #endif        
       
         //need to read the files and create an array containing the quality score of each read
@@ -917,14 +933,16 @@ int main(int argc, char **argv){
     //delete files
 #ifndef DEBUG
     for(i=0;i<VERTICAL_NODES+1;i++){
-        sprintf(target_filename,PARTED_TARGET_FILENAME_FORMAT,myrowid);
+        sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         if(i!=myrowid){
-
+            //int ret=remove(source_filename);
+            //errorCheckNEG(ret);
         }
     }
     
     //remove main sam file
-    
+    //ret=remove(inputfilename);
+    //errorCheckNEG(ret);
     
     
 #endif    
