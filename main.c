@@ -898,7 +898,11 @@ int main(int argc, char **argv){
     //close the down the listening socket
     TCP_server_shutdown(listenfd);
     
-    
+
+    //remove main sam file
+    ret=remove(inputfilename);
+    errorCheckNEG(ret);    
+ 
     
     //now we can send the files
     char command[2000];
@@ -935,16 +939,11 @@ int main(int argc, char **argv){
     for(i=0;i<VERTICAL_NODES+1;i++){
         sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         if(i!=myrowid){
-            //int ret=remove(source_filename);
-            //errorCheckNEG(ret);
+            int ret=remove(source_filename);
+            errorCheckNEG(ret);
         }
     }
-    
-    //remove main sam file
-    //ret=remove(inputfilename);
-    //errorCheckNEG(ret);
-    
-    
+     
 #endif    
     
 
