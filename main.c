@@ -22,11 +22,11 @@
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 109760000
+#define READS 109753378
 
 //#define DEBUG "comment to turn off"
 //#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
-
+//#define NO_DEL_MAIN_SAM "comment to turn off"  //the main input sam file will not be deleted if this is on
 
 /*******************definitions of formats and paths**********************/
 
@@ -286,62 +286,102 @@ int to_which_device(char *chrom, int pos){
 int to_which_row(char *chrom, int pos){
     
     //row 0
-    if(strcmp(chrom,"1")==0 && pos>=1 && pos <=200000000){
-        return 0;
-    }
-    else if(strcmp(chrom,"2")==0 && pos>=1 && pos <=200000000){
-        return 0;
-    }
-    else if(strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0 ){
+    if(strcmp(chrom,"2")==0 || strcmp(chrom,"1")==0 || strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0){
         return 0;
     }
 
-    
-    else if(strcmp(chrom,"1")==0 && pos>=200000001){
+
+    //row1
+    else if(strcmp(chrom,"X")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
         return 1;
     }    
-    else if(strcmp(chrom,"2")==0 && pos>=200000001){
-        return 1;
-    }     
-    else if(strcmp(chrom,"8")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
-        return 1;    
-    }
+
     
-     
-    else if(strcmp(chrom,"15")==0 || strcmp(chrom,"16")==0 ){
+    //row 2 
+    else if(strcmp(chrom,"12")==0 || strcmp(chrom,"11")==0 || strcmp(chrom,"8")==0 || strcmp(chrom,"10")==0 ){
         return 2;
     }
-    else if(strcmp(chrom,"9")==0 || strcmp(chrom,"22")==0 ){
+    else if(strcmp(chrom,"19")==0 || strcmp(chrom,"Y")==0 || strcmp(chrom,"22")==0 || strcmp(chrom,"21")==0){
         return 2;
     }
-    else if(strcmp(chrom,"10")==0 || strcmp(chrom,"21")==0 ){
-        return 2;
-    }
-    else if(strcmp(chrom,"11")==0 || strcmp(chrom,"19")==0 ){
-        return 2;
-    }
+
     
-    else if(strcmp(chrom,"X")==0 || strcmp(chrom,"Y")==0 ){
+    //row 3
+    else if(strcmp(chrom,"15")==0 || strcmp(chrom,"14")==0 || strcmp(chrom,"13")==0 || strcmp(chrom,"9")==0){
         return 3;
     }    
-    else if(strcmp(chrom,"14")==0 || strcmp(chrom,"17")==0 ){
+    else if(strcmp(chrom,"18")==0 || strcmp(chrom,"16")==0  || strcmp(chrom,"17")==0 || strcmp(chrom,"20")==0){
         return 3;
     }     
-     else if(strcmp(chrom,"13")==0 || strcmp(chrom,"18")==0){
-        return 3;
-    }
-    else if(strcmp(chrom,"12")==0 || strcmp(chrom,"20")==0 ){
-        return 3;
-    }    
+
 
     else{
-        fprintf(stderr,"Some invalid chromosome or position %s:%d\n",chrom,pos);
-        exit(EXIT_FAILURE);
+        //fprintf(stderr,"Some invalid chromosome or position %s:%d\n",chrom,pos);
+        //exit(EXIT_FAILURE);
+        return -1;
     }   
     
 }
 
 
+//old way
+// int to_which_row(char *chrom, int pos){
+    
+    // //row 0
+    // if(strcmp(chrom,"1")==0 && pos>=1 && pos <=200000000){
+        // return 0;
+    // }
+    // else if(strcmp(chrom,"2")==0 && pos>=1 && pos <=200000000){
+        // return 0;
+    // }
+    // else if(strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0 ){
+        // return 0;
+    // }
+
+    
+    // else if(strcmp(chrom,"1")==0 && pos>=200000001){
+        // return 1;
+    // }    
+    // else if(strcmp(chrom,"2")==0 && pos>=200000001){
+        // return 1;
+    // }     
+    // else if(strcmp(chrom,"8")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
+        // return 1;    
+    // }
+    
+     
+    // else if(strcmp(chrom,"15")==0 || strcmp(chrom,"16")==0 ){
+        // return 2;
+    // }
+    // else if(strcmp(chrom,"9")==0 || strcmp(chrom,"22")==0 ){
+        // return 2;
+    // }
+    // else if(strcmp(chrom,"10")==0 || strcmp(chrom,"21")==0 ){
+        // return 2;
+    // }
+    // else if(strcmp(chrom,"11")==0 || strcmp(chrom,"19")==0 ){
+        // return 2;
+    // }
+    
+    // else if(strcmp(chrom,"X")==0 || strcmp(chrom,"Y")==0 ){
+        // return 3;
+    // }    
+    // else if(strcmp(chrom,"14")==0 || strcmp(chrom,"17")==0 ){
+        // return 3;
+    // }     
+     // else if(strcmp(chrom,"13")==0 || strcmp(chrom,"18")==0){
+        // return 3;
+    // }
+    // else if(strcmp(chrom,"12")==0 || strcmp(chrom,"20")==0 ){
+        // return 3;
+    // }    
+
+    // else{
+        // fprintf(stderr,"Some invalid chromosome or position %s:%d\n",chrom,pos);
+        // exit(EXIT_FAILURE);
+    // }   
+    
+// }
 
 void encode_mapqarray(char *inputname, char *outputname, int devno){
 
@@ -610,18 +650,20 @@ void deduplicate(char *inputname, char *outputname){
         
         //get the row number
         row=to_which_row(chrom, pos);
-        assert(row>=0 && row<4);
+        assert(row>=-1 && row<4);
         
-        unsigned char mapq = mapq_array[0][read_array_index];
-        unsigned char mapq1 = mapq_array[1][read_array_index];
-        unsigned char mapq2 = mapq_array[2][read_array_index];
-        unsigned char mapq3 = mapq_array[3][read_array_index];
-        if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){
+        if(row>=0){
+            unsigned char mapq = mapq_array[0][read_array_index];
+            unsigned char mapq1 = mapq_array[1][read_array_index];
+            unsigned char mapq2 = mapq_array[2][read_array_index];
+            unsigned char mapq3 = mapq_array[3][read_array_index];
+            if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){
 
-#ifdef DEBUG        
-            fprintf(output,"%s",buffercpy); 
-#endif            
-            fprintf(output_files[row],"%s",buffercpy); 
+    #ifdef DEBUG        
+                fprintf(output,"%s",buffercpy); 
+    #endif            
+                fprintf(output_files[row],"%s",buffercpy); 
+            }
         }
         
         //if(read_array_index==4179){
@@ -899,10 +941,11 @@ int main(int argc, char **argv){
     TCP_server_shutdown(listenfd);
     
 
+#ifndef NO_DEL_MAIN_SAM
     //remove main sam file
     ret=remove(inputfilename);
     errorCheckNEG(ret);    
- 
+#endif 
     
     //now we can send the files
     char command[2000];
