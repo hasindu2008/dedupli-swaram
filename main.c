@@ -22,17 +22,17 @@
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 109753378
+#define READS 393632554
 
 //#define DEBUG "comment to turn off"
 //#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
-//#define NO_DEL_MAIN_SAM "comment to turn off"  //the main input sam file will not be deleted if this is on
+#define NO_DEL_MAIN_SAM "comment to turn off"  //the main input sam file will not be deleted if this is on
 
 /*******************definitions of formats and paths**********************/
 
 #define READFORMAT "sr%ld"
 #define PARTED_FILENAME_FORMAT "/genomics/scratch/parted%d.sam" 
-#define PARTED_TARGET_FILENAME_FORMAT "/genomics/scratch/newparted%d.sam"
+#define PARTED_TARGET_FILENAME_FORMAT "/genstore/scratch/newparted%d.sam"
 
 #define NEIGHBOUR_ROW_IP "/genomics/horizontal_topology.cfg"
 #define NEIGHBOUR_COLUMN_IP "/genomics/vertical_topology.cfg"
@@ -40,7 +40,7 @@
 #define START_READ_ID "/genomics/start_read_id.cfg"
 
 //#define INPUT_FILE_NAME "/home/odroid/sorting_framework/data/set%d.sam"
-#define INPUT_FILE_NAME "/home/odroid/DevSset%d.sam"
+#define INPUT_FILE_NAME "/genstore/DevSset%d.sam"
 #define DEBUG_FILE_NAME "/home/odroid/sorting_framework/data/debug%d.sam"
 #define DEBUG_WHOLE_OUTPUT_NAME "/home/odroid/sorting_framework/data/dedupli%d.sam"
 
@@ -546,8 +546,10 @@ void deduplicate(char *inputname, char *outputname){
     errorCheckNULL(input);
 
     //whole output
+	#ifdef DEBUG
     FILE *output = fopen(outputname,"w");
     errorCheckNULL(output);    
+	#endif
     
     char output_filename[1000];
     //divided outputs
@@ -675,7 +677,9 @@ void deduplicate(char *inputname, char *outputname){
     free(buffer);
     free(buffercpy);
     fclose(input);
+	#ifdef DEBUG	
     fclose(output);
+	#endif
  
     for(i=0;i<VERTICAL_NODES+1;i++){
         fclose(output_files[i]);   
@@ -833,7 +837,7 @@ int main(int argc, char **argv){
     // }
     // fclose(config);    
     
-    
+#if 1    
     //data structures for clients (connect to servers running on other ips)
     pthread_t client_thread[3];     
     int thread_id[NODES];
@@ -940,13 +944,15 @@ int main(int argc, char **argv){
     //close the down the listening socket
     TCP_server_shutdown(listenfd);
     
+#endif
 
 #ifndef NO_DEL_MAIN_SAM
     //remove main sam file
     ret=remove(inputfilename);
     errorCheckNEG(ret);    
 #endif 
-    
+
+#if 1    
     //now we can send the files
     char command[2000];
     char source_filename[1000];
@@ -954,7 +960,7 @@ int main(int argc, char **argv){
     
     int pids_scp[VERTICAL_NODES+1];
     
-    int j;
+    int j=0;
     for(i=0;i<VERTICAL_NODES+1;i++){
         sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         sprintf(target_filename,PARTED_TARGET_FILENAME_FORMAT,myrowid);
@@ -988,7 +994,7 @@ int main(int argc, char **argv){
     }
      
 #endif    
-    
+#endif
 
     
     return 0;
