@@ -1,3 +1,10 @@
+/* @dedupli
+**
+** spurious alignment removal and data distribution 
+** @author: Hasindu Gamaarachchi (hasindu@unsw.edu.au)
+** @@
+******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,6 +12,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include "socket.h"
+#include "error.h"
 #include <netdb.h> 
 #include <arpa/inet.h>
 #include <signal.h>
@@ -14,15 +22,15 @@
 
 /*******************definitions of values**********************/
 
-#define NODES 3
-#define VERTICAL_NODES 3
+#define NODES 3 //peer nodes for a BWA instance (to do SAR removal)
+#define STACKS 3 //peer nodes for SAM file distribution
 
 #define BUFF_SIZE 1000
 
 #define LOOPS 1
 
 //#define STARTID 0
-#define READS 393632554
+#define READS 400000000 //max reads
 
 //#define DEBUG "comment to turn off"
 //#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
@@ -40,11 +48,13 @@
 #define START_READ_ID "/genomics/start_read_id.cfg"
 
 //#define INPUT_FILE_NAME "/home/odroid/sorting_framework/data/set%d.sam"
-#define INPUT_FILE_NAME "/genstore/DevSset%d.sam"
+#define INPUT_FILE_NAME "/genstore/DevSset.sam"
 #define DEBUG_FILE_NAME "/home/odroid/sorting_framework/data/debug%d.sam"
 #define DEBUG_WHOLE_OUTPUT_NAME "/home/odroid/sorting_framework/data/dedupli%d.sam"
 
 /*******************global vars**********************/
+
+
 
 long STARTID = 0;
 
@@ -80,54 +90,12 @@ pthread_barrier_t mybarrier2;
     
 // };
 
-// struct region_limit region_limits[VERTICAL_NODES];
+// struct region_limit region_limits[STACKS];
 
-FILE *output_files[VERTICAL_NODES+1];
+FILE *output_files[STACKS+1];
 
 int iteration_number=0;
 
-
-/*******************hepler macros and functions**********************/
-
-/*Die on error. Print the error and exit if the return value of the previous function NULL*/
-#define errorCheckNULL(ret) ({\
-    if (ret==NULL){ \
-        fprintf(stderr,"Error at File %s line number %d : %s\n",__FILE__, __LINE__,strerror(errno));\
-        exit(EXIT_FAILURE);\
-    }\
-    })
-
-/*Die on error. Print the error and exit if the return value of the previous function is -1*/
-#define errorCheckNEG(ret) ({\
-    if (ret<0){ \
-        fprintf(stderr,"Error at File %s line number %d : %s\n",__FILE__, __LINE__,strerror(errno));\
-        exit(EXIT_FAILURE);\
-    }\
-    })    
-    
-
-/*Die on error. Print the error and exit if the return value of the previous function NULL*/
-void errorCheckNULL_pmsg(void *ret,char *msg){
-        if(ret==NULL){
-                perror(msg);
-                exit(EXIT_FAILURE);
-        }
-}
-
-void pthread_check(int ret){
-    if(ret!=0){
-        perror("Error creating thread");
-        exit(EXIT_FAILURE);
-    }
-}
-
-void errorCheckScanVal(int ret,char *msg){
-    if(ret!=1){
-        fprintf(stderr,"%s\n",msg);
-		exit(EXIT_FAILURE);
-    }  
-    
-}
 
 
 /*******************System Functions**********************/
@@ -219,7 +187,7 @@ int get_ip(char * hostname , char* ip)
 /*******************Program Functions**********************/
 
 
-
+/*
 int to_which_device(char *chrom, int pos){
     
     if(strcmp(chrom,"1")==0 && pos>=1 && pos <=200000000){
@@ -282,36 +250,49 @@ int to_which_device(char *chrom, int pos){
         exit(EXIT_FAILURE);
     }
 }
+*/
 
 int to_which_row(char *chrom, int pos){
     
-    //row 0
+    //stack 0
     if(strcmp(chrom,"2")==0 || strcmp(chrom,"1")==0 || strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0){
-        return 0;
+        if (STACKS==3) return 0;
+        if (STACKS==1) return 0;
+        if (STACKS==0) return 0;
     }
 
 
-    //row1
+    //stack 1
     else if(strcmp(chrom,"X")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
-        return 1;
+         if (STACKS==3) return 1;
+         if (STACKS==1) return 0;
+         if (STACKS==0) return 0;
     }    
 
     
-    //row 2 
+    //stack 2 
     else if(strcmp(chrom,"12")==0 || strcmp(chrom,"11")==0 || strcmp(chrom,"8")==0 || strcmp(chrom,"10")==0 ){
-        return 2;
+         if (STACKS==3) return 2;
+         if (STACKS==1) return 1;
+         if (STACKS==0) return 0;
     }
     else if(strcmp(chrom,"19")==0 || strcmp(chrom,"Y")==0 || strcmp(chrom,"22")==0 || strcmp(chrom,"21")==0){
-        return 2;
+         if (STACKS==3) return 2;
+         if (STACKS==1) return 1;
+         if (STACKS==0) return 0;
     }
 
     
-    //row 3
+    //stack 3
     else if(strcmp(chrom,"15")==0 || strcmp(chrom,"14")==0 || strcmp(chrom,"13")==0 || strcmp(chrom,"9")==0){
-        return 3;
+        if (STACKS==3) return 3;
+        if (STACKS==1) return 1;
+        if (STACKS==0) return 0;
     }    
     else if(strcmp(chrom,"18")==0 || strcmp(chrom,"16")==0  || strcmp(chrom,"17")==0 || strcmp(chrom,"20")==0){
-        return 3;
+        if (STACKS==3) return 3;
+        if (STACKS==1) return 1;
+        if (STACKS==0) return 0;
     }     
 
 
@@ -386,18 +367,18 @@ int to_which_row(char *chrom, int pos){
 void encode_mapqarray(char *inputname, char *outputname, int devno){
 
     FILE *input = fopen(inputname,"r");
-    errorCheckNULL(input);
+    F_CHK(input,inputname);
 
     
 #ifdef DEBUG    
     FILE *output = fopen(outputname,"w");
-    errorCheckNULL(output);    
+    F_CHK(output,outputname);    
 #endif
  
     char *buffer = malloc(sizeof(char)*BUFF_SIZE);
-    errorCheckNULL(buffer);
+    MALLOC_CHK(buffer);
     char *buffercpy = malloc(sizeof(char)*BUFF_SIZE);
-    errorCheckNULL(buffercpy);
+    MALLOC_CHK(buffercpy);
     
     memset(mapq_array[devno],0,READS);  //can handle inside the loop as all reads are in the input sam and hence all un mapped will be cleared to 0
     
@@ -543,26 +524,26 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
 void deduplicate(char *inputname, char *outputname){
     
     FILE *input = fopen(inputname,"r");
-    errorCheckNULL(input);
+    F_CHK(input,inputname);
 
     //whole output
 	#ifdef DEBUG
     FILE *output = fopen(outputname,"w");
-    errorCheckNULL(output);    
+    F_CHK(output,outputname);    
 	#endif
     
     char output_filename[1000];
     //divided outputs
     int i;
-    for(i=0;i<VERTICAL_NODES+1;i++){
+    for(i=0;i<STACKS+1;i++){
         sprintf(output_filename,PARTED_FILENAME_FORMAT,i);
         output_files[i]=fopen(output_filename,"w");
-        errorCheckNULL(output_files[i]); 
+        F_CHK(output_files[i],output_filename); 
     }
     
     //separated output
     // char filename[256];
-    // for(i=0;i<VERTICAL_NODES;i++){
+    // for(i=0;i<STACKS;i++){
         // sprintf(filename,"dev%d.sam",i);
         // region_limits[i].outfile = fopen(filename,"w");
         // errorCheckNULL(region_limits[i].outfile);   
@@ -571,9 +552,9 @@ void deduplicate(char *inputname, char *outputname){
     
  
     char *buffer = malloc(sizeof(char)*BUFF_SIZE);
-    errorCheckNULL(buffer);
+    MALLOC_CHK(buffer);
     char *buffercpy = malloc(sizeof(char)*BUFF_SIZE);
-    errorCheckNULL(buffercpy);
+    MALLOC_CHK(buffercpy);
     
 
     size_t bufferSize = BUFF_SIZE;
@@ -601,7 +582,7 @@ void deduplicate(char *inputname, char *outputname){
         
         //ignore header lines  //empty new lines? //but write them
         if(buffer[0]=='@' || buffer[0]=='\n'){
-            for(i=0;i<VERTICAL_NODES+1;i++){
+            for(i=0;i<STACKS+1;i++){
                 fprintf(output_files[i],"%s",buffer); 
             }
             continue;
@@ -681,7 +662,7 @@ void deduplicate(char *inputname, char *outputname){
     fclose(output);
 	#endif
  
-    for(i=0;i<VERTICAL_NODES+1;i++){
+    for(i=0;i<STACKS+1;i++){
         fclose(output_files[i]);   
     }        
     
@@ -802,7 +783,7 @@ int main(int argc, char **argv){
     
     //reading config file, Contains what other hosts should be connected
     FILE *config = fopen(NEIGHBOUR_ROW_IP,"r");
-    errorCheckNULL(config);   
+    F_CHK(config,NEIGHBOUR_ROW_IP);   
     for(i=0;i<NODES;i++){
         fgets(&node_ips[i][0], 256, config);  //check returned value, 
     }
@@ -810,7 +791,7 @@ int main(int argc, char **argv){
     
     //vertical hosts (where to send files)
     config = fopen(NEIGHBOUR_COLUMN_IP,"r");
-    errorCheckNULL(config);   
+    F_CHK(config,NEIGHBOUR_COLUMN_IP);   
     for(i=0;i<NODES;i++){
         fgets(&vertical_node_ips[i][0], 256, config);  //check returned value, 
         int len = strlen(&vertical_node_ips[i][0])-1; 
@@ -821,17 +802,17 @@ int main(int argc, char **argv){
     //row ID of the self
     int myrowid=-1;
     config = fopen(MY_ROW_ID,"r");
-    errorCheckNULL(config);   
+    F_CHK(config,MY_ROW_ID);   
     fscanf(config,"%d",&myrowid);
     fclose(config);    
-    assert(myrowid>=0 && myrowid<=VERTICAL_NODES);
+    assert(myrowid>=0 && myrowid<=STACKS);
     
     
     
     //reading information on the regions in which each device should process on 
     // config = fopen("/etc/region_info","r");   
     // errorCheckNULL(config);
-    // for(i=0;i<VERTICAL_NODES;i++){
+    // for(i=0;i<STACKS;i++){
         // fscanf(config,"%s %d %d",region_limits[i].chromosome,&(region_limits[i].lowlimit), &(region_limits[i].highlimit)); //check returned value
         // printf("%s %d %d\n",region_limits[i].chromosome,region_limits[i].lowlimit, region_limits[i].highlimit);
     // }
@@ -874,7 +855,7 @@ int main(int argc, char **argv){
     for(i=0;i<LOOPS;i++){
         
         //generate filenames
-        sprintf(inputfilename,INPUT_FILE_NAME,i);
+        sprintf(inputfilename,INPUT_FILE_NAME);
 #ifdef DEBUG
         sprintf(debugfilename,DEBUG_FILE_NAME,i);
         sprintf(outputfilename,DEBUG_WHOLE_OUTPUT_NAME,i); 
@@ -888,7 +869,7 @@ int main(int argc, char **argv){
 #else       
     STARTID=-1;    
     config = fopen(START_READ_ID,"r");
-    errorCheckNULL(config);   
+    F_CHK(config,START_READ_ID);   
     fscanf(config,"%ld",&STARTID);
     fclose(config);    
     assert(STARTID>=0);        
@@ -958,10 +939,10 @@ int main(int argc, char **argv){
     char source_filename[1000];
     char target_filename[1000];
     
-    int pids_scp[VERTICAL_NODES+1];
+    int pids_scp[STACKS+1];
     
     int j=0;
-    for(i=0;i<VERTICAL_NODES+1;i++){
+    for(i=0;i<STACKS+1;i++){
         sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         sprintf(target_filename,PARTED_TARGET_FILENAME_FORMAT,myrowid);
         if(i!=myrowid){
@@ -979,13 +960,13 @@ int main(int argc, char **argv){
     
     
     //wait for scps
-    for(i=0;i<VERTICAL_NODES+1;i++){
+    for(i=0;i<STACKS+1;i++){
         wait_async(pids_scp[i]);
     }
     
     //delete files
 #ifndef DEBUG
-    for(i=0;i<VERTICAL_NODES+1;i++){
+    for(i=0;i<STACKS+1;i++){
         sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         if(i!=myrowid){
             int ret=remove(source_filename);
