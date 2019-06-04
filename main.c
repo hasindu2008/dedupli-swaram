@@ -20,13 +20,34 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-/*******************definitions of values**********************/
 
-#define NODES 3 //peer nodes for a BWA instance (to do SAR removal)
-#define STACKS 3 //peer nodes for SAM file distribution
+/******************frequently changed definitions***************/
+#define STACKS 3 
+//peer stacks for SAM file distribution 
+//(if total 4 stacks this is 3)
+//(if total 3 stacks this is 2)
+//(if total 2 stacks this is 1)
+//(if only 1 stack this is 0)
+
+#define INPUT_FILE_NAME "/genstore/DevSset.sam" 
+//the location of the input SAM file (output of BWA)
+
+#define PARTED_FILENAME_FORMAT "/genomics/scratch/parted%d.sam"
+//where the partitioned sam files are temporarily stored
+
+#define PARTED_TARGET_FILENAME_FORMAT "/genstore/scratch/newparted%d.sam"
+//where the partition sam files will be copied to 
+
+#define READFORMAT "sr%ld" 
+//the format of the read ID 
+
+
+
+/**************other infrequently changed definitions of values**********************/
+
+#define NODES 3 //peer nodes for a BWA instance (to do SAR removal) - always 3 if 2GB RAM devices such as Odroid XU4 are used
 
 #define BUFF_SIZE 1000
-
 #define LOOPS 1
 
 //#define STARTID 0
@@ -36,25 +57,17 @@
 //#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG_DEDUPLI is 0 and LOOPS os 1
 #define NO_DEL_MAIN_SAM "comment to turn off"  //the main input sam file will not be deleted if this is on
 
-/*******************definitions of formats and paths**********************/
-
-#define READFORMAT "sr%ld"
-#define PARTED_FILENAME_FORMAT "/genomics/scratch/parted%d.sam" 
-#define PARTED_TARGET_FILENAME_FORMAT "/genstore/scratch/newparted%d.sam"
+/*******************other infrequently changed definitions of formats and paths**********************/
 
 #define NEIGHBOUR_ROW_IP "/genomics/horizontal_topology.cfg"
 #define NEIGHBOUR_COLUMN_IP "/genomics/vertical_topology.cfg"
 #define MY_ROW_ID "/genomics/rowID.cfg"
 #define START_READ_ID "/genomics/start_read_id.cfg"
 
-//#define INPUT_FILE_NAME "/home/odroid/sorting_framework/data/set%d.sam"
-#define INPUT_FILE_NAME "/genstore/DevSset.sam"
 #define DEBUG_FILE_NAME "/home/odroid/sorting_framework/data/debug%d.sam"
 #define DEBUG_WHOLE_OUTPUT_NAME "/home/odroid/sorting_framework/data/dedupli%d.sam"
 
 /*******************global vars**********************/
-
-
 
 long STARTID = 0;
 
