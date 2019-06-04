@@ -32,8 +32,8 @@
 //#define STARTID 0
 #define READS 400000000 //max reads
 
-//#define DEBUG "comment to turn off"
-//#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG is 0 and LOOPS os 1
+//#define DEBUG_DEDUPLI "comment to turn off"
+//#define MANUAL_ARG "comment to turn off"  //if this is 1 make sure DEBUG_DEDUPLI is 0 and LOOPS os 1
 #define NO_DEL_MAIN_SAM "comment to turn off"  //the main input sam file will not be deleted if this is on
 
 /*******************definitions of formats and paths**********************/
@@ -370,7 +370,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
     F_CHK(input,inputname);
 
     
-#ifdef DEBUG    
+#ifdef DEBUG_DEDUPLI    
     FILE *output = fopen(outputname,"w");
     F_CHK(output,outputname);    
 #endif
@@ -502,7 +502,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
         
         mapq_array[devno][read_array_index] = (unsigned char)mapq;
       
-#ifdef DEBUG 
+#ifdef DEBUG_DEDUPLI 
         fprintf(output,"%s",buffercpy);  
 #endif        
         
@@ -515,7 +515,7 @@ void encode_mapqarray(char *inputname, char *outputname, int devno){
     free(buffercpy);
     fclose(input);
     
-#ifdef DEBUG     
+#ifdef DEBUG_DEDUPLI     
     fclose(output);
 #endif 
     
@@ -527,7 +527,7 @@ void deduplicate(char *inputname, char *outputname){
     F_CHK(input,inputname);
 
     //whole output
-	#ifdef DEBUG
+	#ifdef DEBUG_DEDUPLI
     FILE *output = fopen(outputname,"w");
     F_CHK(output,outputname);    
 	#endif
@@ -642,7 +642,7 @@ void deduplicate(char *inputname, char *outputname){
             unsigned char mapq3 = mapq_array[3][read_array_index];
             if(mapq!=0 && mapq >= mapq1 && mapq >= mapq2 && mapq >= mapq3){
 
-    #ifdef DEBUG        
+    #ifdef DEBUG_DEDUPLI        
                 fprintf(output,"%s",buffercpy); 
     #endif            
                 fprintf(output_files[row],"%s",buffercpy); 
@@ -658,7 +658,7 @@ void deduplicate(char *inputname, char *outputname){
     free(buffer);
     free(buffercpy);
     fclose(input);
-	#ifdef DEBUG	
+	#ifdef DEBUG_DEDUPLI	
     fclose(output);
 	#endif
  
@@ -856,7 +856,7 @@ int main(int argc, char **argv){
         
         //generate filenames
         sprintf(inputfilename,INPUT_FILE_NAME);
-#ifdef DEBUG
+#ifdef DEBUG_DEDUPLI
         sprintf(debugfilename,DEBUG_FILE_NAME,i);
         sprintf(outputfilename,DEBUG_WHOLE_OUTPUT_NAME,i); 
 #endif  
@@ -965,7 +965,7 @@ int main(int argc, char **argv){
     }
     
     //delete files
-#ifndef DEBUG
+#ifndef DEBUG_DEDUPLI
     for(i=0;i<STACKS+1;i++){
         sprintf(source_filename,PARTED_FILENAME_FORMAT,i);
         if(i!=myrowid){
