@@ -35,7 +35,7 @@
 #define PARTED_FILENAME_FORMAT "/genomics/scratch/parted%d.sam"
 //where the partitioned sam files are temporarily stored
 
-#define PARTED_TARGET_FILENAME_FORMAT "/genstore/scratch/newparted%d.sam"
+#define PARTED_TARGET_FILENAME_FORMAT "/genomics/scratch/newparted%d.sam"
 //where the partition sam files will be copied to 
 
 #define READFORMAT "sr%ld" 
@@ -270,6 +270,7 @@ int to_which_row(char *chrom, int pos){
     //stack 0
     if(strcmp(chrom,"2")==0 || strcmp(chrom,"1")==0 || strcmp(chrom,"3")==0 || strcmp(chrom,"4")==0){
         if (STACKS==3) return 0;
+		if (STACKS==2) return 0;
         if (STACKS==1) return 0;
         if (STACKS==0) return 0;
     }
@@ -278,6 +279,7 @@ int to_which_row(char *chrom, int pos){
     //stack 1
     else if(strcmp(chrom,"X")==0 || strcmp(chrom,"7")==0 || strcmp(chrom,"6")==0 || strcmp(chrom,"5")==0){
          if (STACKS==3) return 1;
+		 if (STACKS==2) return 1;
          if (STACKS==1) return 0;
          if (STACKS==0) return 0;
     }    
@@ -286,11 +288,13 @@ int to_which_row(char *chrom, int pos){
     //stack 2 
     else if(strcmp(chrom,"12")==0 || strcmp(chrom,"11")==0 || strcmp(chrom,"8")==0 || strcmp(chrom,"10")==0 ){
          if (STACKS==3) return 2;
+		 if (STACKS==2) return 2;
          if (STACKS==1) return 1;
          if (STACKS==0) return 0;
     }
     else if(strcmp(chrom,"19")==0 || strcmp(chrom,"Y")==0 || strcmp(chrom,"22")==0 || strcmp(chrom,"21")==0){
          if (STACKS==3) return 2;
+		 if (STACKS==2) return 2;
          if (STACKS==1) return 1;
          if (STACKS==0) return 0;
     }
@@ -299,11 +303,13 @@ int to_which_row(char *chrom, int pos){
     //stack 3
     else if(strcmp(chrom,"15")==0 || strcmp(chrom,"14")==0 || strcmp(chrom,"13")==0 || strcmp(chrom,"9")==0){
         if (STACKS==3) return 3;
+		if (STACKS==2) return 2;
         if (STACKS==1) return 1;
         if (STACKS==0) return 0;
     }    
     else if(strcmp(chrom,"18")==0 || strcmp(chrom,"16")==0  || strcmp(chrom,"17")==0 || strcmp(chrom,"20")==0){
         if (STACKS==3) return 3;
+		if (STACKS==2) return 2;
         if (STACKS==1) return 1;
         if (STACKS==0) return 0;
     }     
