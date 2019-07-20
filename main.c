@@ -1,6 +1,6 @@
 /* @dedupli
 **
-** spurious alignment removal and data distribution 
+** spurious alignment removal and data distribution for swaram
 ** @author: Hasindu Gamaarachchi (hasindu@unsw.edu.au)
 ** @@
 ******************************************************************************/

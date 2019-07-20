@@ -1,3 +1,11 @@
+/* @socketLibC
+**
+** A simple and easy to use TCP Linux socket programming library
+** https://github.com/hasindu2008/socketLibC
+** @author: Hasindu Gamaarachchi (hasindu@unsw.edu.au)
+** @@
+******************************************************************************/
+
 
 /*******************************Blocking send and receive***********************************/
 

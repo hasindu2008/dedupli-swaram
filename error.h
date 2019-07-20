@@ -1,3 +1,12 @@
+/* @error.h
+**
+** A simple wrapper for error checking and logging
+** @author: Hasindu Gamaarachchi (hasindu@unsw.edu.au)
+** @@
+******************************************************************************/
+
+
+
 #ifndef ERROR_H
 #define ERROR_H
 
